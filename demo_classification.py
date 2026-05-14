@@ -38,30 +38,6 @@ def main(args,logger):
         args.patch_h = 72
         args.patch_w = 56
         args.batch_size = 3
-    elif args.dataset == 'salt':
-        args.n1, args.n2 = 224, 224
-        args.classes = 2
-        args.patch_h = 20
-        args.patch_w = 20
-        args.batch_size = 32
-    elif args.dataset == 'crater':
-        args.n1, args.n2 = 1022, 1022 
-        args.classes = 2
-        args.patch_h = 73
-        args.patch_w = 73
-        args.batch_size = 3
-    elif args.dataset == 'das':
-        args.n1, args.n2 = 512, 512 
-        args.classes = 2
-        args.patch_h = 37
-        args.patch_w = 37
-        args.batch_size = 6
-    elif args.dataset == 'fault':
-        args.n1, args.n2 = 896, 896 
-        args.classes = 2
-        args.patch_h = 64
-        args.patch_w = 64
-        args.batch_size = 6
 
     if args.checkpointName in ["unfrozen","lora"]:
         frozen = False

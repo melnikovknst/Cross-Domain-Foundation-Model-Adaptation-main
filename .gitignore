@@ -5,9 +5,9 @@ slurm_logs/
 *.err
 *.out
 .venv*
-venv
 __pycache__/
 log/
 Tensorboard/
 checkpoint
 .torch/
+png/

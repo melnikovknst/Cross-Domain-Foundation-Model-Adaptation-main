@@ -101,7 +101,7 @@ class BasicDataset(Dataset):
                     img_tensor[i,j] = self.transform(img)
             data = img_tensor
         elif not self.imgTrans:
-            data = data/255
+            data = self.z_normalize(data)
 
         return data,label
 
@@ -109,6 +109,12 @@ class BasicDataset(Dataset):
         b,c,h,w = data.shape
         data_fliplr = np.flip(data,axis=-1)
         return data_fliplr.reshape(b,c,h,w)
+
+    @staticmethod
+    def z_normalize(data, eps=1e-6):
+        mean = data.mean(axis=(-2, -1), keepdims=True)
+        std = data.std(axis=(-2, -1), keepdims=True)
+        return ((data - mean) / np.maximum(std, eps)).astype(np.float32)
 
     @staticmethod
     def slice_sort_key(file_name):
