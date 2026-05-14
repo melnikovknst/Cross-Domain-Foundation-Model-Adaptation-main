@@ -5,7 +5,7 @@ slurm_logs/
 *.err
 *.out
 .venv*
-venv
+png/
 __pycache__/
 log/
 Tensorboard/
