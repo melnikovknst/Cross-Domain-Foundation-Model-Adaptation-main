@@ -23,17 +23,13 @@ class BasicDataset(Dataset):
 
         self.dataset = datasetName
 
-        if datasetName == 'seam':
+        if datasetName == 'amplitude':
             self.n1 = 1006
             self.n2 = 782
-            # self.train_data_dir = '../data/seismicFace/train/input'
-            # self.train_label_dir = '../data/seismicFace/train/target'
-            # self.valid_data_dir = '../data/seismicFace/valid/input'
-            # self.valid_label_dir = '../data/seismicFace/valid/target'
-            self.train_data_dir = '/home/zxguo/data/seamai_1006x782/seamaiForTrain/input'
-            self.train_label_dir = '/home/zxguo/data/seamai_1006x782/seamaiForTrain/target'
-            self.valid_data_dir = '/home/zxguo/data/seamai_1006x782/seamaiForVal/input'
-            self.valid_label_dir = '/home/zxguo/data/seamai_1006x782/seamaiForVal/target'
+            self.train_data_dir = '../data/amplitude/train/input'
+            self.train_label_dir = '../data/amplitude/train/target'
+            self.valid_data_dir = '../data/amplitude/valid/input'
+            self.valid_label_dir = '../data/amplitude/valid/target'
         elif datasetName == 'salt':
             self.n1 = 224
             self.n2 = 224
@@ -111,6 +107,6 @@ class BasicDataset(Dataset):
 
 if __name__ == '__main__':
 
-    train_set = BasicDataset(72,56,'seam','setr1',True,True)
+    train_set = BasicDataset(72,56,'amplitude','setr1',True,True)
     print(train_set.__getitem__(0)[1].shape)
     print(len(train_set))

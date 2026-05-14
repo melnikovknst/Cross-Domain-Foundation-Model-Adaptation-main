@@ -32,7 +32,7 @@ def main(args,logger):
     if not os.path.exists(dir_checkpoint):
         os.makedirs(dir_checkpoint)
 
-    if args.dataset == 'seam':
+    if args.dataset == 'amplitude':
         args.n1, args.n2 = 1006, 782
         args.classes = 6
         args.patch_h = 72
@@ -145,7 +145,7 @@ def goTrain(args,
     elif args.loss == "wdice":
         criterion = WeightedDiceLoss(args.classes,device=args.device)
     elif args.loss == "bace":
-        if args.dataset == "seam":
+        if args.dataset == "amplitude":
             weight = torch.tensor([1.216,0.395,3.673,0.573,14.193,1.798]).reshape(-1,1).to(args.device)
             criterion = nn.CrossEntropyLoss(weight=weight)
 
@@ -292,7 +292,7 @@ def get_args():
     parser.add_argument('--vt', '-v', type=str, default="small")
     parser.add_argument('--checkpointName', '-cp',  type=str, default='lora', help='lora or unfrozen')
     parser.add_argument('--netType', '-net',  type=str, default='pup', help='pup,mla,linear,unet')
-    parser.add_argument('--dataset', '-d', type=str, default='seam')
+    parser.add_argument('--dataset', '-d', type=str, default='amplitude')
     parser.add_argument('--device', '-dn', type=str, default='cuda:4')
     parser.add_argument('--save_checkpoint', '-sckp', type=bool, default=True)
     return parser.parse_args()

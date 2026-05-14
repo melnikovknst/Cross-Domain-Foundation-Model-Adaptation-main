@@ -2,7 +2,7 @@
 
 echo "----------Training Starge--------------"
 python ../demo_classification.py -net "mla" \
-                    -d "seam" \
+                    -d "amplitude" \
                     -dn "cuda" \
                     -v "small"\
                     -loss "wdice"\
@@ -12,7 +12,7 @@ echo "----------Training Over----------------"
 
 echo "---------------Evaluate----------------"
 python ../evaluate_classification.py -net "mla" \
-                    -d "seam" \
+                    -d "amplitude" \
                     -dn "cuda" \
                     -v "small"\
                     -loss "wdice"\

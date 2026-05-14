@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     losstype = "ce"
 
-    if args.dataset == 'seam':
+    if args.dataset == 'amplitude':
         args.n1, args.n2 = 1006, 782
         args.classes = 6
         args.patch_h = 72
