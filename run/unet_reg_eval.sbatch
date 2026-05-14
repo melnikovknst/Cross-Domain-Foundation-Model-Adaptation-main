@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J unet_ampl_eval
+#SBATCH -J unet_reg_eval
 #SBATCH -p a100serv
 #SBATCH -N 1
 #SBATCH -n 1
@@ -34,7 +34,7 @@ VIT_TYPE="small"
 CHECKPOINT_NAME="unfrozen"
 
 SLURM_LOG_DIR="${RUN_DIR}/slurm_logs"
-SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/unet_ampl_eval"
+SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/unet_reg_eval"
 JOB_OUT="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.out"
 JOB_ERR="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.err"
 CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/${NET_TYPE}"

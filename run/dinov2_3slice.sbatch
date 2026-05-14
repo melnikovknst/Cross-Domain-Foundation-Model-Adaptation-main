@@ -46,7 +46,7 @@ case "${DECODER}" in
 esac
 
 SLURM_LOG_DIR="${RUN_DIR}/slurm_logs"
-SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/dinov2_ampl"
+SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/dinov2_3slice"
 JOB_OUT="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.out"
 JOB_ERR="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.err"
 CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/${DECODER}"
