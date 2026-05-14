@@ -1,3 +1,13 @@
 .DS_Store
 data/
 data.zip
+slurm_logs/
+*.err
+*.out
+.venv*
+venv
+__pycache__/
+log/
+Tensorboard/
+checkpoint
+.torch/

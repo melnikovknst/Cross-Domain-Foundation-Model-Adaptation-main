@@ -4,6 +4,11 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as T
 
+DATA_ROOT = os.environ.get(
+    'DATA_ROOT',
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+)
+
 class BasicDataset(Dataset):
 
     def __init__(self,patch_h,patch_w,datasetName,netType,train_mode = False):
@@ -26,38 +31,10 @@ class BasicDataset(Dataset):
         if datasetName == 'amplitude':
             self.n1 = 1006
             self.n2 = 782
-            self.train_data_dir = '../data/amplitude/train/input'
-            self.train_label_dir = '../data/amplitude/train/target'
-            self.valid_data_dir = '../data/amplitude/valid/input'
-            self.valid_label_dir = '../data/amplitude/valid/target'
-        elif datasetName == 'salt':
-            self.n1 = 224
-            self.n2 = 224
-            self.train_data_dir = '../data/geobody/train/input'
-            self.train_label_dir = '../data/geobody/train/target'
-            self.valid_data_dir = '../data/geobody/valid/input'
-            self.valid_label_dir = '../data/geobody/valid/target'
-        elif datasetName == 'fault':
-            self.n1 = 896
-            self.n2 = 896
-            self.train_data_dir = '../data/deepFault/train/image'
-            self.train_label_dir = '../data/deepFault/train/label'
-            self.valid_data_dir = '../data/deepFault/valid/image'
-            self.valid_label_dir = '../data/deepFault/valid/label'
-        elif datasetName == 'crater':
-            self.n1 = 1022
-            self.n2 = 1022
-            self.train_data_dir = '../data/crater/train/image'
-            self.train_label_dir = '../data/crater/train/label'
-            self.valid_data_dir = '../data/crater/valid/image'
-            self.valid_label_dir = '../data/crater/valid/label'
-        elif datasetName == 'das':
-            self.n1 = 512
-            self.n2 = 512
-            self.train_data_dir = '../data/das/train/image'
-            self.train_label_dir = '../data/das/train/label'
-            self.valid_data_dir = '../data/das/valid/image'
-            self.valid_label_dir = '../data/das/valid/label'
+            self.train_data_dir = os.path.join(DATA_ROOT, 'amplitude/train/input')
+            self.train_label_dir = os.path.join(DATA_ROOT, 'amplitude/train/target')
+            self.valid_data_dir = os.path.join(DATA_ROOT, 'amplitude/valid/input')
+            self.valid_label_dir = os.path.join(DATA_ROOT, 'amplitude/valid/target')
         else:
             print("Dataset error!!")
         print('netType:' + netType)
@@ -72,14 +49,28 @@ class BasicDataset(Dataset):
             self.data_dir = self.valid_data_dir
             self.label_dir = self.valid_label_dir
 
-        self.ids = len(os.listdir(self.data_dir))
+        self.ids = sorted(
+            file_name for file_name in os.listdir(self.data_dir)
+            if file_name.endswith('.dat')
+        )
+        if not self.ids:
+            raise RuntimeError(f'No .dat files found in {self.data_dir}')
+        missing_labels = [
+            file_name for file_name in self.ids
+            if not os.path.exists(os.path.join(self.label_dir, file_name))
+        ]
+        if missing_labels:
+            raise RuntimeError(
+                f'Missing label files in {self.label_dir}: {missing_labels[:5]}'
+            )
     def __len__(self):
-        return self.ids
+        return len(self.ids)
 
     def __getitem__(self,index):
         
-        dPath = self.data_dir+'/'+str(index)+'.dat'
-        tPath = self.label_dir+'/'+str(index)+'.dat'
+        file_name = self.ids[index]
+        dPath = os.path.join(self.data_dir, file_name)
+        tPath = os.path.join(self.label_dir, file_name)
         data = np.fromfile(dPath,np.float32).reshape(self.n1,self.n2)
         label = np.fromfile(tPath,np.int8).reshape(self.n1,self.n2)
 
