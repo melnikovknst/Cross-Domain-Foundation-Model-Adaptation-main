@@ -50,8 +50,11 @@ class BasicDataset(Dataset):
             self.label_dir = self.valid_label_dir
 
         self.ids = sorted(
-            file_name for file_name in os.listdir(self.data_dir)
-            if file_name.endswith('.dat')
+            (
+                file_name for file_name in os.listdir(self.data_dir)
+                if file_name.endswith('.dat')
+            ),
+            key=self.slice_sort_key
         )
         if not self.ids:
             raise RuntimeError(f'No .dat files found in {self.data_dir}')
@@ -69,23 +72,34 @@ class BasicDataset(Dataset):
     def __getitem__(self,index):
         
         file_name = self.ids[index]
-        dPath = os.path.join(self.data_dir, file_name)
         tPath = os.path.join(self.label_dir, file_name)
-        data = np.fromfile(dPath,np.float32).reshape(self.n1,self.n2)
+        if self.imgTrans:
+            slice_indexes = [
+                max(index - 1, 0),
+                index,
+                min(index + 1, len(self.ids) - 1),
+            ]
+            data = np.stack([
+                np.fromfile(os.path.join(self.data_dir, self.ids[i]),np.float32).reshape(self.n1,self.n2)
+                for i in slice_indexes
+            ],axis=0).reshape(1,3,self.n1,self.n2)
+        else:
+            dPath = os.path.join(self.data_dir, file_name)
+            data = np.fromfile(dPath,np.float32).reshape(self.n1,self.n2)
+            data = np.reshape(data,(1,1,self.n1,self.n2))
         label = np.fromfile(tPath,np.int8).reshape(self.n1,self.n2)
 
-        data = np.reshape(data,(1,1,self.n1,self.n2))
         data = np.concatenate([data,self.data_aug(data)],axis=0)
         label = np.reshape(label,(1,1,self.n1,self.n2))
         label = np.concatenate([label,self.data_aug(label)],axis=0)
 
         if self.imgTrans:
-            img_tensor = np.zeros([2,1,self.patch_h*14,self.patch_w*14],np.float32)
+            img_tensor = np.zeros([2,3,self.patch_h*14,self.patch_w*14],np.float32)
             for i in range(data.shape[0]):
-                img = Image.fromarray(np.uint8(data[i,0]))
-                img_tensor[i,0] = self.transform(img)
+                for j in range(data.shape[1]):
+                    img = Image.fromarray(np.uint8(data[i,j]))
+                    img_tensor[i,j] = self.transform(img)
             data = img_tensor
-            data = data.repeat(3,axis=1)
         elif not self.imgTrans:
             data = data/255
 
@@ -93,8 +107,13 @@ class BasicDataset(Dataset):
 
     def data_aug(self,data):
         b,c,h,w = data.shape
-        data_fliplr = np.fliplr(np.squeeze(data))
+        data_fliplr = np.flip(data,axis=-1)
         return data_fliplr.reshape(b,c,h,w)
+
+    @staticmethod
+    def slice_sort_key(file_name):
+        name = os.path.splitext(file_name)[0]
+        return (0, int(name)) if name.isdigit() else (1, name)
 
 if __name__ == '__main__':
 
