@@ -26,7 +26,7 @@ fi
 RUN_DIR="${REPO_ROOT}/run"
 PARENT_DATA_DIR="${REPO_ROOT}/../data"
 export DATA_ROOT="${PARENT_DATA_DIR}"
-export TORCH_HOME="${REPO_ROOT}/.cache/torch"
+export TORCH_HOME="${REPO_ROOT}/.torch"
 DINO_CHECKPOINT_DIR="${TORCH_HOME}/hub/checkpoints"
 
 DATASET="amplitude"
