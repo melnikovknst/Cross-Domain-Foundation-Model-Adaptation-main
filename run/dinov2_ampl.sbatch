@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J dinov2_ampl
+#SBATCH -J dinov2_multi
 #SBATCH -p a100serv
 #SBATCH -N 1
 #SBATCH -n 1
@@ -34,7 +34,7 @@ DECODER="${DECODER:-mla}"
 VIT_TYPE="${VIT_TYPE:-small}"
 CHECKPOINT_NAME="${CHECKPOINT_NAME:-unfrozen}"
 LR="${LR:-1e-5}"
-EPOCHS="${EPOCHS:-100}"
+EPOCHS="${EPOCHS:-40}"
 
 case "${DECODER}" in
     linear|pup|dpt|mla) ;;
@@ -46,10 +46,10 @@ case "${DECODER}" in
 esac
 
 SLURM_LOG_DIR="${RUN_DIR}/slurm_logs"
-SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/dinov2_ampl"
+SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/dinov2_multi"
 JOB_OUT="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.out"
 JOB_ERR="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.err"
-CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/${DECODER}"
+CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/multi-${DECODER}"
 TRAIN_LOG_DIR="${REPO_ROOT}/log/${DATASET}/${LOSS}/${DECODER}"
 TENSORBOARD_DIR="${REPO_ROOT}/Tensorboard/${DATASET}/${LOSS}"
 PNG_DIR="${REPO_ROOT}/png/${DATASET}/${DECODER}/${LOSS}/${CHECKPOINT_NAME}_${VIT_TYPE}"
