@@ -26,7 +26,7 @@ fi
 RUN_DIR="${REPO_ROOT}/run"
 PARENT_DATA_DIR="${REPO_ROOT}/../data"
 export DATA_ROOT="${PARENT_DATA_DIR}"
-export TORCH_HOME="${TORCH_HOME:-${HOME}/.cache/torch}"
+export TORCH_HOME="${REPO_ROOT}/.cache/torch"
 DINO_CHECKPOINT_DIR="${TORCH_HOME}/hub/checkpoints"
 
 DATASET="amplitude"
@@ -55,7 +55,7 @@ JOB_ERR="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.err"
 CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/${NET_TYPE}"
 MODEL_PATH="${CHECKPOINT_DIR}/${CHECKPOINT_NAME}_${VIT_TYPE}_maxiou_valid.pth"
 TRAIN_LOG_DIR="${REPO_ROOT}/log/${DATASET}/${LOSS}/${NET_TYPE}"
-PNG_DIR="${REPO_ROOT}/png/${DATASET}/reg-${NET_TYPE}/${LOSS}/${CHECKPOINT_NAME}_${VIT_TYPE}"
+PNG_DIR="${REPO_ROOT}/png/${DATASET}/${NET_TYPE}/${LOSS}/${CHECKPOINT_NAME}_${VIT_TYPE}"
 
 mkdir -p "${SCRIPT_LOG_DIR}" "${TRAIN_LOG_DIR}" "${PNG_DIR}" "${DINO_CHECKPOINT_DIR}"
 exec > "${JOB_OUT}" 2> "${JOB_ERR}"
