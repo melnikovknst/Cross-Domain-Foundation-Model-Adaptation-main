@@ -1,8 +1,8 @@
 import os
 import numpy as np
+import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
-from PIL import Image
-import torchvision.transforms as T
 
 DATA_ROOT = os.environ.get(
     'DATA_ROOT',
@@ -11,20 +11,21 @@ DATA_ROOT = os.environ.get(
 
 class BasicDataset(Dataset):
 
-    def __init__(self,patch_h,patch_w,datasetName,netType,train_mode = False):
+    def __init__(self,patch_h,patch_w,datasetName,netType,train_mode = False,input_mode='3slice'):
 
         self.patch_h = patch_h
         self.patch_w = patch_w
+        if input_mode not in ('3slice', 'single'):
+            raise ValueError("input_mode must be '3slice' or 'single'")
+        self.input_mode = input_mode
 
         if netType == 'unet' or netType == 'deeplabv3plus':
             self.imgTrans = False
+            self.input_mode = 'single'
         else: 
             self.imgTrans = True
 
-        self.transform = T.Compose([
-            T.Resize((patch_h * 14, patch_w * 14)),
-            T.ToTensor(),
-        ])    
+        self.resize_size = (patch_h * 14, patch_w * 14)
 
         self.dataset = datasetName
 
@@ -41,6 +42,7 @@ class BasicDataset(Dataset):
         print('dataset:' + datasetName)
         print('patch_h:' + str(patch_h))
         print('patch_w:' + str(patch_w))
+        print('input_mode:' + self.input_mode)
 
         if train_mode:
             self.data_dir = self.train_data_dir
@@ -74,15 +76,20 @@ class BasicDataset(Dataset):
         file_name = self.ids[index]
         tPath = os.path.join(self.label_dir, file_name)
         if self.imgTrans:
-            slice_indexes = [
-                max(index - 1, 0),
-                index,
-                min(index + 1, len(self.ids) - 1),
-            ]
-            data = np.stack([
-                np.fromfile(os.path.join(self.data_dir, self.ids[i]),np.float32).reshape(self.n1,self.n2)
-                for i in slice_indexes
-            ],axis=0).reshape(1,3,self.n1,self.n2)
+            if self.input_mode == '3slice':
+                slice_indexes = [
+                    max(index - 1, 0),
+                    index,
+                    min(index + 1, len(self.ids) - 1),
+                ]
+                channels = [
+                    np.fromfile(os.path.join(self.data_dir, self.ids[i]),np.float32).reshape(self.n1,self.n2)
+                    for i in slice_indexes
+                ]
+            else:
+                center = np.fromfile(os.path.join(self.data_dir, file_name),np.float32).reshape(self.n1,self.n2)
+                channels = [center, center, center]
+            data = np.stack(channels,axis=0).reshape(1,3,self.n1,self.n2)
         else:
             dPath = os.path.join(self.data_dir, file_name)
             data = np.fromfile(dPath,np.float32).reshape(self.n1,self.n2)
@@ -94,12 +101,11 @@ class BasicDataset(Dataset):
         label = np.concatenate([label,self.data_aug(label)],axis=0)
 
         if self.imgTrans:
-            img_tensor = np.zeros([2,3,self.patch_h*14,self.patch_w*14],np.float32)
-            for i in range(data.shape[0]):
-                for j in range(data.shape[1]):
-                    img = Image.fromarray(np.uint8(data[i,j]))
-                    img_tensor[i,j] = self.transform(img)
-            data = img_tensor
+            data = self.z_normalize(data)
+            data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
+            data = torch.from_numpy(data).float()
+            data = F.interpolate(data, size=self.resize_size, mode='bilinear', align_corners=False)
+            data = data.numpy().astype(np.float32)
         elif not self.imgTrans:
             data = self.z_normalize(data)
 

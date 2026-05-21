@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -J dinov2_ampl
+#SBATCH -J dinov2_reg_eval
 #SBATCH -p a100serv
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -c 8
-#SBATCH --mem=96G
-#SBATCH -t 72:00:00
+#SBATCH -c 4
+#SBATCH --mem=64G
+#SBATCH -t 08:00:00
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 
@@ -26,35 +26,38 @@ fi
 RUN_DIR="${REPO_ROOT}/run"
 PARENT_DATA_DIR="${REPO_ROOT}/../data"
 export DATA_ROOT="${PARENT_DATA_DIR}"
-export TORCH_HOME="${REPO_ROOT}/.torch"
+export TORCH_HOME="${TORCH_HOME:-${HOME}/.cache/torch}"
+DINO_CHECKPOINT_DIR="${TORCH_HOME}/hub/checkpoints"
 
 DATASET="amplitude"
 LOSS="wdice"
-DECODER="${DECODER:-mla}"
-VIT_TYPE="${VIT_TYPE:-small}"
-CHECKPOINT_NAME="${CHECKPOINT_NAME:-unfrozen}"
-LR="${LR:-1e-5}"
-EPOCHS="${EPOCHS:-100}"
+NET_TYPE="mla"
+VIT_TYPE="small"
+CHECKPOINT_NAME="${CHECKPOINT_NAME:-frozen}"
+INPUT_MODE="${INPUT_MODE:-3slice}"
 
-case "${DECODER}" in
-    linear|pup|dpt|mla) ;;
+case "${VIT_TYPE}" in
+    small)
+        DINO_PRETRAIN_FILE="dinov2_vits14_reg4_pretrain.pth"
+        ;;
     *)
-        echo "ERROR: unsupported DECODER=${DECODER}"
-        echo "Use one of: linear, pup, dpt, mla"
+        echo "ERROR: unsupported VIT_TYPE=${VIT_TYPE}"
+        echo "This branch supports only DINOv2 ViT-S/14 with registers: use small"
         exit 1
         ;;
 esac
+DINO_PRETRAIN_PATH="${DINO_CHECKPOINT_DIR}/${DINO_PRETRAIN_FILE}"
 
 SLURM_LOG_DIR="${RUN_DIR}/slurm_logs"
-SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/dinov2_ampl"
+SCRIPT_LOG_DIR="${SLURM_LOG_DIR}/dinov2_reg_eval"
 JOB_OUT="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.out"
 JOB_ERR="${SCRIPT_LOG_DIR}/${SLURM_JOB_ID:-manual}.err"
-CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/${DECODER}"
-TRAIN_LOG_DIR="${REPO_ROOT}/log/${DATASET}/${LOSS}/${DECODER}"
-TENSORBOARD_DIR="${REPO_ROOT}/Tensorboard/${DATASET}/${LOSS}"
-PNG_DIR="${REPO_ROOT}/png/${DATASET}/${DECODER}/${LOSS}/${CHECKPOINT_NAME}_${VIT_TYPE}"
+CHECKPOINT_DIR="${REPO_ROOT}/checkpoint/${DATASET}/${LOSS}/${NET_TYPE}"
+MODEL_PATH="${CHECKPOINT_DIR}/${CHECKPOINT_NAME}_${VIT_TYPE}_maxiou_valid.pth"
+TRAIN_LOG_DIR="${REPO_ROOT}/log/${DATASET}/${LOSS}/${NET_TYPE}"
+PNG_DIR="${REPO_ROOT}/png/${DATASET}/reg-${NET_TYPE}/${LOSS}/${CHECKPOINT_NAME}_${VIT_TYPE}"
 
-mkdir -p "${SCRIPT_LOG_DIR}" "${CHECKPOINT_DIR}" "${TRAIN_LOG_DIR}" "${TENSORBOARD_DIR}" "${PNG_DIR}" "${TORCH_HOME}"
+mkdir -p "${SCRIPT_LOG_DIR}" "${TRAIN_LOG_DIR}" "${PNG_DIR}" "${DINO_CHECKPOINT_DIR}"
 exec > "${JOB_OUT}" 2> "${JOB_ERR}"
 
 module load nvidia/cuda
@@ -89,15 +92,10 @@ echo "slurm_log_dir=${SCRIPT_LOG_DIR}"
 echo "job_stdout=${JOB_OUT}"
 echo "job_stderr=${JOB_ERR}"
 echo "dataset=${PARENT_DATA_DIR}/${DATASET}"
-echo "decoder=${DECODER}"
-echo "vit_type=${VIT_TYPE}"
-echo "checkpoint_name=${CHECKPOINT_NAME}"
-echo "learning_rate=${LR}"
-echo "epochs=${EPOCHS}"
-echo "torch_home=${TORCH_HOME}"
-echo "checkpoints=${CHECKPOINT_DIR}"
-echo "train_log=${TRAIN_LOG_DIR}/${CHECKPOINT_NAME}_${VIT_TYPE}.txt"
-echo "tensorboard=${TENSORBOARD_DIR}"
+echo "model_path=${MODEL_PATH}"
+echo "dino_pretrain=${DINO_PRETRAIN_PATH}"
+echo "input_mode=${INPUT_MODE}"
+echo "eval_log=${TRAIN_LOG_DIR}/${CHECKPOINT_NAME}_${VIT_TYPE}.txt"
 echo "png=${PNG_DIR}"
 nvidia-smi
 
@@ -137,32 +135,33 @@ echo "python=${PYTHON_BIN}"
 if [ ! -d "${PARENT_DATA_DIR}/${DATASET}" ]; then
     echo "ERROR: dataset not found."
     echo "Expected ${PARENT_DATA_DIR}/${DATASET}"
-    echo "The training code reads this path from DATA_ROOT=${DATA_ROOT}"
+    echo "The evaluation code reads this path from DATA_ROOT=${DATA_ROOT}"
     exit 1
 fi
-echo "train_files=$(find "${PARENT_DATA_DIR}/${DATASET}/train/input" -maxdepth 1 -type f -name '*.dat' | wc -l)"
+if [ ! -f "${DINO_PRETRAIN_PATH}" ]; then
+    echo "ERROR: DINOv2 register pretrained weights not found."
+    echo "Copy the file to: ${DINO_PRETRAIN_PATH}"
+    echo "For VIT_TYPE=${VIT_TYPE}, expected file name: ${DINO_PRETRAIN_FILE}"
+    exit 1
+fi
+if [ ! -f "${MODEL_PATH}" ]; then
+    echo "ERROR: trained checkpoint not found."
+    echo "Expected ${MODEL_PATH}"
+    echo "The evaluator loads exactly this file for -net ${NET_TYPE} -d ${DATASET} -loss ${LOSS} -cp ${CHECKPOINT_NAME} -v ${VIT_TYPE}"
+    exit 1
+fi
 echo "valid_files=$(find "${PARENT_DATA_DIR}/${DATASET}/valid/input" -maxdepth 1 -type f -name '*.dat' | wc -l)"
 
 cd "${RUN_DIR}"
 
-echo "----------Training DINOv2-${DECODER} facies/amplitude--------------"
-"${PYTHON_BIN}" ../demo_classification.py \
-    -net "${DECODER}" \
+echo "---------------Evaluate DINOv2-MLA facies/amplitude----------------"
+"${PYTHON_BIN}" ../evaluate_classification.py \
+    -net "${NET_TYPE}" \
     -d "${DATASET}" \
     -dn "cuda" \
     -v "${VIT_TYPE}" \
     -loss "${LOSS}" \
     -cp "${CHECKPOINT_NAME}" \
-    -l "${LR}" \
-    -e "${EPOCHS}"
-
-echo "---------------Evaluate DINOv2-${DECODER} facies/amplitude----------------"
-"${PYTHON_BIN}" ../evaluate_classification.py \
-    -net "${DECODER}" \
-    -d "${DATASET}" \
-    -dn "cuda" \
-    -v "${VIT_TYPE}" \
-    -loss "${LOSS}" \
-    -cp "${CHECKPOINT_NAME}"
+    -im "${INPUT_MODE}"
 
 echo "Done"

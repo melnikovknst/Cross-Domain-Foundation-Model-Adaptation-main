@@ -87,8 +87,8 @@ def goTrain(args,
     get_parameter_number(net)
 
     # Create dataset
-    train_set = BasicDataset(patch_h, patch_w, args.dataset,args.netType, train_mode=True)
-    valid_set = BasicDataset(patch_h, patch_w, args.dataset,args.netType, train_mode=False)
+    train_set = BasicDataset(patch_h, patch_w, args.dataset,args.netType, train_mode=True,input_mode=args.input_mode)
+    valid_set = BasicDataset(patch_h, patch_w, args.dataset,args.netType, train_mode=False,input_mode=args.input_mode)
 
     #Create data loaders
     train_loader= DataLoader(dataset = train_set,batch_size = batch_size, shuffle=True)
@@ -101,6 +101,7 @@ def goTrain(args,
         Training size:   {len(train_set)}
         Validation size: {len(valid_set)}
         Checkpoints:     {save_checkpoint}
+        Input mode:      {args.input_mode}
     ''')
 
     jaccard = JaccardIndex(task='multiclass',num_classes=num_classes).to(device)
@@ -266,8 +267,9 @@ def get_args():
     parser.add_argument('--anneal_lr', '-a', dest='al', type=str, default="False")
     parser.add_argument('--dpt', '-p', type=str, default="True", help='dinov2 pretrain')
     parser.add_argument('--vt', '-v', type=str, default="small")
-    parser.add_argument('--checkpointName', '-cp',  type=str, default='lora', help='lora or unfrozen')
-    parser.add_argument('--netType', '-net',  type=str, default='pup', help='pup,mla,linear,unet')
+    parser.add_argument('--checkpointName', '-cp',  type=str, default='lora', help='frozen, unfrozen or lora')
+    parser.add_argument('--netType', '-net',  type=str, default='pup', help='pup,mla,linear,dpt,unet')
+    parser.add_argument('--input_mode', '-im', type=str, default='3slice', choices=['3slice', 'single'])
     parser.add_argument('--dataset', '-d', type=str, default='amplitude')
     parser.add_argument('--device', '-dn', type=str, default='cuda:4')
     parser.add_argument('--save_checkpoint', '-sckp', type=bool, default=True)

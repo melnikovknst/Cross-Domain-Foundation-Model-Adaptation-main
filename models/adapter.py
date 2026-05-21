@@ -2,14 +2,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as T
-from models.vision_transformer_lora import vit_small_lora,vit_base_lora
-from models.vision_transformer import vit_small,vit_base
+from models.vision_transformer_lora import vit_small_lora
+from models.vision_transformer import vit_small
 import fvcore.nn.weight_init as weight_init
 
 import logging
 import loralib as lora
 
 _DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
+_DINOV2_PATCH_SIZE = 14
+_DINOV2_REGISTER_TOKENS = 4
+_DINOV2_EMBED_DIM = 384
 
 def load_pretrained_weights(model, pretrained_weights, checkpoint_key):
     logger = logging.getLogger("dinov2")
@@ -26,47 +29,52 @@ def load_pretrained_weights(model, pretrained_weights, checkpoint_key):
 
 def make_dinov2_model_name(arch_name: str, patch_size: int) -> str:
     compact_arch_name = arch_name.replace("_", "")[:4]
-    return f"dinov2_{compact_arch_name}{patch_size}"
+    return f"dinov2_{compact_arch_name}{patch_size}_reg"
+
+def make_dinov2_checkpoint_url(arch_name: str, patch_size: int) -> str:
+    compact_arch_name = arch_name.replace("_", "")[:4]
+    model_base_name = f"dinov2_{compact_arch_name}{patch_size}"
+    checkpoint_name = f"{model_base_name}_reg{_DINOV2_REGISTER_TOKENS}_pretrain.pth"
+    return f"{_DINOV2_BASE_URL}/{model_base_name}/{checkpoint_name}"
+
+def _use_pretrained(dino_pretrain) -> bool:
+    return str(dino_pretrain).lower() == "true"
 
 def make_vit_encoder(dino_pretrain="False",vit_type="small",finetune_method="unfrozen"):
+    if vit_type != "small":
+        raise ValueError("This branch supports only DINOv2 ViT-S/14 with registers: use -v small.")
     vit_kwargs = dict(
         in_chans = 3,
         img_size=224,
-        patch_size=14,
+        patch_size=_DINOV2_PATCH_SIZE,
         init_values=1.0e-05,
         ffn_layer="mlp",
         block_chunks=0,
         qkv_bias=True,
         proj_bias=True,
-        ffn_bias=True
+        ffn_bias=True,
+        num_register_tokens=_DINOV2_REGISTER_TOKENS,
     )
-    if dino_pretrain == "True":
-        model_name = make_dinov2_model_name("vit_"+vit_type, 14)
-        url = _DINOV2_BASE_URL + f"/{model_name}/{model_name}_pretrain.pth"
+    if _use_pretrained(dino_pretrain):
+        model_name = make_dinov2_model_name("vit_"+vit_type, _DINOV2_PATCH_SIZE)
+        url = make_dinov2_checkpoint_url("vit_"+vit_type, _DINOV2_PATCH_SIZE)
+        logging.getLogger("dinov2").info("Loading %s weights from %s", model_name, url)
         pretrained_weights = torch.hub.load_state_dict_from_url(url, map_location="cpu")
     if finetune_method == "unfrozen" or finetune_method == "frozen":
         if vit_type == "small":
             encoder = vit_small(**vit_kwargs)
-            emb = 384
-            strict = True
-        elif vit_type == "base":
-            encoder = vit_base(**vit_kwargs)
-            emb = 768
+            emb = _DINOV2_EMBED_DIM
             strict = True
         else:
             print("Error in vit_type!!!")
     elif finetune_method == "lora":
         if vit_type == "small":
             encoder = vit_small_lora(**vit_kwargs)
-            emb = 384
-            strict = False
-        elif vit_type == "base":
-            encoder = vit_base_lora(**vit_kwargs)
-            emb = 768
+            emb = _DINOV2_EMBED_DIM
             strict = False
         else:
             print("Error in vit_type!!!")
-    if dino_pretrain == "True":
+    if _use_pretrained(dino_pretrain):
         encoder.load_state_dict(pretrained_weights, strict=strict)
     return encoder,emb
 
@@ -291,7 +299,7 @@ class dinov2_pup(nn.Module):
         B,_,H,W =  x.shape
         features,_ = self.encoder.forward_features(x)
         fea_img = features['x_norm_patchtokens']
-        fea_img = fea_img.view(fea_img.size(0),int(H / 14),int(W / 14),self.emb)
+        fea_img = fea_img.view(fea_img.size(0),int(H / _DINOV2_PATCH_SIZE),int(W / _DINOV2_PATCH_SIZE),self.emb)
         fea_img = fea_img.permute(0, 3, 1, 2).contiguous()
         out = self.decoder(fea_img,size)
         return out
@@ -319,8 +327,8 @@ class dinov2_mla(nn.Module):
         for k,x in x_middle.items():
             x = x.view(
                 x.size(0),
-                int(H / 14),
-                int(W / 14),
+                int(H / _DINOV2_PATCH_SIZE),
+                int(W / _DINOV2_PATCH_SIZE),
                 self.emb,
             )
             x = x.permute(0, 3, 1, 2).contiguous()
@@ -349,7 +357,7 @@ class dinov2_linear(nn.Module):
         B,_,H,W =  x.shape
         features,_ = self.encoder.forward_features(x)
         fea_img = features['x_norm_patchtokens']
-        fea_img = fea_img.view(fea_img.size(0),int(H / 14),int(W / 14),self.emb)
+        fea_img = fea_img.view(fea_img.size(0),int(H / _DINOV2_PATCH_SIZE),int(W / _DINOV2_PATCH_SIZE),self.emb)
         fea_img = fea_img.permute(0, 3, 1, 2).contiguous()
         out = self.decoder(fea_img)
         out = F.interpolate(out,size=size)

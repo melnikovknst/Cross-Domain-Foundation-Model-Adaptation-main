@@ -62,7 +62,8 @@ class DinoVisionTransformer(nn.Module):
         act_layer=nn.GELU,
         block_fn=Block,
         ffn_layer="mlp",
-        block_chunks=1
+        block_chunks=1,
+        num_register_tokens=0,
     ):
         """
         Args:
@@ -91,6 +92,7 @@ class DinoVisionTransformer(nn.Module):
 
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
         self.num_tokens = 1
+        self.num_register_tokens = num_register_tokens
         self.n_blocks = depth
         self.num_heads = num_heads
         self.patch_size = patch_size
@@ -99,6 +101,11 @@ class DinoVisionTransformer(nn.Module):
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.register_tokens = (
+            nn.Parameter(torch.zeros(1, num_register_tokens, embed_dim))
+            if num_register_tokens
+            else None
+        )
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1114, embed_dim))
 
         if drop_path_uniform is True:
@@ -160,7 +167,12 @@ class DinoVisionTransformer(nn.Module):
     def init_weights(self):
         trunc_normal_(self.pos_embed, std=0.02)
         nn.init.normal_(self.cls_token, std=1e-6)
+        if self.register_tokens is not None:
+            nn.init.normal_(self.register_tokens, std=1e-6)
         named_apply(init_weights_vit_timm, self)
+
+    def _patch_token_start(self):
+        return 1 + self.num_register_tokens
 
     def interpolate_pos_encoding(self, x, w, h):
         previous_dtype = x.dtype
@@ -196,6 +208,15 @@ class DinoVisionTransformer(nn.Module):
 
         x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
         x = x + self.interpolate_pos_encoding(x, w, h)
+        if self.register_tokens is not None:
+            x = torch.cat(
+                (
+                    x[:, :1],
+                    self.register_tokens.expand(x.shape[0], -1, -1),
+                    x[:, 1:],
+                ),
+                dim=1,
+            )
 
         return x
 
@@ -212,7 +233,8 @@ class DinoVisionTransformer(nn.Module):
             output.append(
                 {
                     "x_norm_clstoken": x_norm[:, 0],
-                    "x_norm_patchtokens": x_norm[:, 1:],
+                    "x_norm_regtokens": x_norm[:, 1:self._patch_token_start()],
+                    "x_norm_patchtokens": x_norm[:, self._patch_token_start():],
                     "x_prenorm": x,
                     "masks": masks,
                 }
@@ -230,13 +252,14 @@ class DinoVisionTransformer(nn.Module):
         for blk in self.blocks:
             x = blk(x)
             if count == 3 or count == 6 or count == 9 or count == 12:
-                x_middle[str(count)] = self.norm(x)[:, 1:]
+                x_middle[str(count)] = self.norm(x)[:, self._patch_token_start():]
             count = count + 1
 
         x_norm = self.norm(x)
         return {
             "x_norm_clstoken": x_norm[:, 0],
-            "x_norm_patchtokens": x_norm[:, 1:],
+            "x_norm_regtokens": x_norm[:, 1:self._patch_token_start()],
+            "x_norm_patchtokens": x_norm[:, self._patch_token_start():],
             "x_prenorm": x,
             "masks": masks,
         }, x_middle
@@ -282,7 +305,7 @@ class DinoVisionTransformer(nn.Module):
         if norm:
             outputs = [self.norm(out) for out in outputs]
         class_tokens = [out[:, 0] for out in outputs]
-        outputs = [out[:, 1:] for out in outputs]
+        outputs = [out[:, self._patch_token_start():] for out in outputs]
         if reshape:
             B, _, w, h = x.shape
             outputs = [

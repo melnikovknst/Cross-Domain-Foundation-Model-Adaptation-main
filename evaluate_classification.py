@@ -25,7 +25,7 @@ def goPredict(net, device, patch_h, patch_w, mPath, loraPath, datasetname, netTy
             net.load_state_dict(torch.load(mPath, map_location=device),strict=True)
     net.to(device)
     net.eval()
-    valid_set = BasicDataset(patch_h, patch_w, datasetname,netType,False)
+    valid_set = BasicDataset(patch_h, patch_w, datasetname,netType,False,input_mode=args.input_mode)
     valid_loader =DataLoader(dataset = valid_set,batch_size = args.batch_size, shuffle=False)
     data_list = []
     predict = []
@@ -106,7 +106,7 @@ def PCA_RGB(args, model, image):
 
     features,_ = model.encoder.forward_features(image)
     fea_img = features['x_norm_patchtokens']
-    fea_img = fea_img.view(fea_img.size(0),int(H / 14),int(W / 14),384)
+    fea_img = fea_img.view(fea_img.size(0),int(H / 14),int(W / 14),model.emb)
 
     # Flatten the feature map to fit PCA
     H, W = fea_img.shape[1], fea_img.shape[2]
@@ -119,8 +119,9 @@ def PCA_RGB(args, model, image):
 
     # Reshape and normalize each principal component
     pcs_images = principal_components.T.reshape((3, H, W))
-    pcs_images_normalized = (pcs_images - pcs_images.min(axis=(1,2), keepdims=True)) / \
-                            (pcs_images.max(axis=(1,2), keepdims=True) - pcs_images.min(axis=(1,2), keepdims=True))
+    pcs_min = pcs_images.min(axis=(1,2), keepdims=True)
+    pcs_range = pcs_images.max(axis=(1,2), keepdims=True) - pcs_min
+    pcs_images_normalized = (pcs_images - pcs_min) / np.maximum(pcs_range, 1e-6)
 
     # Combine the three principal components into an RGB image
     rgb_image = np.stack((pcs_images_normalized[0], pcs_images_normalized[1], pcs_images_normalized[2]), axis=-1)
