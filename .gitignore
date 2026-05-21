@@ -11,3 +11,4 @@ log/
 Tensorboard/
 checkpoint
 .torch/
+png
