@@ -216,7 +216,12 @@ if __name__ == '__main__':
     logger.info(args.dataset +'/'+ args.netType +'_'+args.checkpointName + "_" + args.vt)
     model_Path =  '../checkpoint/'+ args.dataset +'/'+ args.loss +'/'+args.netType +'/'+args.checkpointName + "_" + args.vt+'_maxiou_valid.pth'
     lora_Path = '../checkpoint/'+ args.dataset +'/'+ args.loss +'/'+args.netType +'/'+args.checkpointName + "_" + args.vt+'_maxiou_valid_lora.pth'
-    pngPath = '../png/'+ args.dataset +'/'+ args.netType +'/'+ args.loss +'/' +args.checkpointName + "_" + args.vt+'/'
+    pngPath = os.environ.get(
+        'EVAL_PNG_DIR',
+        '../png/'+ args.dataset +'/'+ args.netType +'/'+ args.loss +'/' +args.checkpointName + "_" + args.vt+'/'
+    )
+    if not pngPath.endswith(os.sep):
+        pngPath += os.sep
 
     if not os.path.exists(pngPath):
         os.makedirs(pngPath)

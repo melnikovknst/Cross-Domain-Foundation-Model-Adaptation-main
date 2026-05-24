@@ -35,6 +35,8 @@ class BasicDataset(Dataset):
             self.train_label_dir = os.path.join(DATA_ROOT, 'amplitude/train/target')
             self.valid_data_dir = os.path.join(DATA_ROOT, 'amplitude/valid/input')
             self.valid_label_dir = os.path.join(DATA_ROOT, 'amplitude/valid/target')
+            self.test_data_dir = os.path.join(DATA_ROOT, 'amplitude/test/input')
+            self.test_label_dir = os.path.join(DATA_ROOT, 'amplitude/test/target')
         else:
             print("Dataset error!!")
         print('netType:' + netType)
@@ -46,8 +48,17 @@ class BasicDataset(Dataset):
             self.data_dir = self.train_data_dir
             self.label_dir = self.train_label_dir
         else:
-            self.data_dir = self.valid_data_dir
-            self.label_dir = self.valid_label_dir
+            eval_split = os.environ.get('AMPLITUDE_EVAL_SPLIT', 'valid')
+            if eval_split == 'valid':
+                self.data_dir = self.valid_data_dir
+                self.label_dir = self.valid_label_dir
+            elif eval_split == 'test':
+                self.data_dir = self.test_data_dir
+                self.label_dir = self.test_label_dir
+            else:
+                raise RuntimeError(
+                    f"Unsupported AMPLITUDE_EVAL_SPLIT={eval_split!r}; use 'valid' or 'test'"
+                )
 
         self.ids = sorted(
             (
