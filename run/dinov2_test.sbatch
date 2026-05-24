@@ -156,12 +156,26 @@ if [ ! -f "${MODEL_PATH}" ]; then
     exit 1
 fi
 
-echo "---------------Create 45 test slices from Parihaka 3D amplitude----------------"
-"${PYTHON_BIN}" "${REPO_ROOT}/scripts/create_amplitude_test_slices.py" \
-    --data-root "${PARENT_DATA_DIR}" \
-    --axis 2 \
-    --count 45 \
-    --overwrite
+TEST_INPUT_DIR="${PARENT_DATA_DIR}/${DATASET}/test/input"
+TEST_TARGET_DIR="${PARENT_DATA_DIR}/${DATASET}/test/target"
+TEST_INPUT_FILES="$(find "${TEST_INPUT_DIR}" -maxdepth 1 -type f -name '*.dat' 2>/dev/null | wc -l || true)"
+TEST_TARGET_FILES="$(find "${TEST_TARGET_DIR}" -maxdepth 1 -type f -name '*.dat' 2>/dev/null | wc -l || true)"
+TEST_INPUT_SIZED_FILES="$(find "${TEST_INPUT_DIR}" -maxdepth 1 -type f -name '*.dat' -size 3146768c 2>/dev/null | wc -l || true)"
+TEST_TARGET_SIZED_FILES="$(find "${TEST_TARGET_DIR}" -maxdepth 1 -type f -name '*.dat' -size 786692c 2>/dev/null | wc -l || true)"
+
+if [ "${TEST_INPUT_FILES}" -eq 45 ] \
+    && [ "${TEST_TARGET_FILES}" -eq 45 ] \
+    && [ "${TEST_INPUT_SIZED_FILES}" -eq 45 ] \
+    && [ "${TEST_TARGET_SIZED_FILES}" -eq 45 ]; then
+    echo "---------------Use existing 45 test slices----------------"
+else
+    echo "---------------Create 45 test slices from Parihaka 3D amplitude----------------"
+    "${PYTHON_BIN}" "${REPO_ROOT}/scripts/create_amplitude_test_slices.py" \
+        --data-root "${PARENT_DATA_DIR}" \
+        --axis 2 \
+        --count 45 \
+        --overwrite
+fi
 
 echo "test_input_files=$(find "${PARENT_DATA_DIR}/${DATASET}/test/input" -maxdepth 1 -type f -name '*.dat' | wc -l)"
 echo "test_target_files=$(find "${PARENT_DATA_DIR}/${DATASET}/test/target" -maxdepth 1 -type f -name '*.dat' | wc -l)"

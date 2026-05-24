@@ -196,10 +196,15 @@ if __name__ == '__main__':
         args.patch_w = 64
         args.batch_size = 6
 
-    if args.checkpointName in ["unfrozen","lora"]:
+    if args.checkpointName.endswith("unfrozen") or args.checkpointName.endswith("lora"):
         frozen = False
-    elif args.checkpointName == "frozen":
+    elif args.checkpointName.endswith("frozen"):
         frozen = True
+    else:
+        raise ValueError(
+            f"Unsupported checkpointName={args.checkpointName!r}; expected suffix "
+            "'unfrozen', 'frozen', or 'lora'"
+        )
 
     if args.netType == "unet":
         net = U_Net(1,args.classes)
