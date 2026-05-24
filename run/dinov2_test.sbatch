@@ -162,11 +162,13 @@ TEST_INPUT_FILES="$(find "${TEST_INPUT_DIR}" -maxdepth 1 -type f -name '*.dat' 2
 TEST_TARGET_FILES="$(find "${TEST_TARGET_DIR}" -maxdepth 1 -type f -name '*.dat' 2>/dev/null | wc -l || true)"
 TEST_INPUT_SIZED_FILES="$(find "${TEST_INPUT_DIR}" -maxdepth 1 -type f -name '*.dat' -size 3146768c 2>/dev/null | wc -l || true)"
 TEST_TARGET_SIZED_FILES="$(find "${TEST_TARGET_DIR}" -maxdepth 1 -type f -name '*.dat' -size 786692c 2>/dev/null | wc -l || true)"
+TEST_MARKER="${PARENT_DATA_DIR}/${DATASET}/test/.created_by_create_amplitude_test_slices_v2"
 
 if [ "${TEST_INPUT_FILES}" -eq 45 ] \
     && [ "${TEST_TARGET_FILES}" -eq 45 ] \
     && [ "${TEST_INPUT_SIZED_FILES}" -eq 45 ] \
-    && [ "${TEST_TARGET_SIZED_FILES}" -eq 45 ]; then
+    && [ "${TEST_TARGET_SIZED_FILES}" -eq 45 ] \
+    && [ -f "${TEST_MARKER}" ]; then
     echo "---------------Use existing 45 test slices----------------"
 else
     echo "---------------Create 45 test slices from Parihaka 3D amplitude----------------"

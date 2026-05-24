@@ -18,7 +18,7 @@ import os
 
 def goPredict(net, device, patch_h, patch_w, mPath, loraPath, datasetname, netType):
     if os.path.exists(mPath):
-        if args.checkpointName=="lora":
+        if args.checkpointName.endswith("lora"):
             net.load_state_dict(torch.load(mPath, map_location=device),strict=False)
             net.load_state_dict(torch.load(loraPath, map_location=device),strict=False)
         else:
@@ -205,17 +205,23 @@ if __name__ == '__main__':
             f"Unsupported checkpointName={args.checkpointName!r}; expected suffix "
             "'unfrozen', 'frozen', or 'lora'"
         )
+    if args.checkpointName.endswith("unfrozen"):
+        finetune_method = "unfrozen"
+    elif args.checkpointName.endswith("frozen"):
+        finetune_method = "frozen"
+    elif args.checkpointName.endswith("lora"):
+        finetune_method = "lora"
 
     if args.netType == "unet":
         net = U_Net(1,args.classes)
     elif args.netType == "linear":
-        net = dinov2_linear(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_linear(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
     elif args.netType == "pup":
-        net = dinov2_pup(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_pup(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
     elif args.netType == "mla":
-        net = dinov2_mla(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_mla(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
     elif args.netType == "dpt":
-        net = dinov2_dpt(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_dpt(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
         
     get_parameter_number(net)
     logger.info(args.dataset +'/'+ args.netType +'_'+args.checkpointName + "_" + args.vt)

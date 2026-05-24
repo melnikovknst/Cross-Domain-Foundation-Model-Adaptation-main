@@ -8,6 +8,9 @@ import numpy as np
 
 
 EXPECTED_SHAPE = (1006, 782)
+EXPECTED_LABEL_MIN = 0
+EXPECTED_LABEL_MAX = 5
+MARKER_NAME = ".created_by_create_amplitude_test_slices_v2"
 
 
 def resolve_ampl3d_dir(data_root):
@@ -113,12 +116,29 @@ def main():
                 f"Label slice shape is {label_slice.shape}, expected {EXPECTED_SHAPE}"
             )
 
+        label_min = int(label_slice.min())
+        label_max = int(label_slice.max())
+        if label_min >= 1 and label_max <= 6:
+            label_slice = label_slice - 1
+            label_min -= 1
+            label_max -= 1
+        if label_min < EXPECTED_LABEL_MIN or label_max > EXPECTED_LABEL_MAX:
+            raise ValueError(
+                f"Label values must be in [{EXPECTED_LABEL_MIN}, {EXPECTED_LABEL_MAX}], "
+                f"got [{label_min}, {label_max}] at source slice {slice_index}"
+            )
+
         np.ascontiguousarray(data_slice, dtype=np.float32).tofile(
             output_input_dir / f"{out_index}.dat"
         )
         np.ascontiguousarray(label_slice, dtype=np.int8).tofile(
             output_target_dir / f"{out_index}.dat"
         )
+
+    (output_target_dir.parent / MARKER_NAME).write_text(
+        f"axis={args.axis}\nstart={start}\ncount={args.count}\nlabels={EXPECTED_LABEL_MIN}..{EXPECTED_LABEL_MAX}\n",
+        encoding="utf-8",
+    )
 
     print(f"data_root={data_root}")
     print(f"ampl3d_dir={ampl3d_dir}")
