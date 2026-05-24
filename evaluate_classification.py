@@ -18,7 +18,7 @@ import os
 
 def goPredict(net, device, patch_h, patch_w, mPath, loraPath, datasetname, netType):
     if os.path.exists(mPath):
-        if args.checkpointName=="lora":
+        if args.checkpointName.endswith("lora"):
             net.load_state_dict(torch.load(mPath, map_location=device),strict=False)
             net.load_state_dict(torch.load(loraPath, map_location=device),strict=False)
         else:
@@ -35,7 +35,7 @@ def goPredict(net, device, patch_h, patch_w, mPath, loraPath, datasetname, netTy
     iou = []
     pa = []
     f1 = []
-    total_conf_matrix = np.zeros((6, 6), dtype=int)
+    total_conf_matrix = np.zeros((args.classes, args.classes), dtype=int)
     for data, label in valid_loader:
         b1,b2,c,h,w = data.shape
         data = data.to(device).reshape(b1*b2,c,h,w)
@@ -54,7 +54,7 @@ def goPredict(net, device, patch_h, patch_w, mPath, loraPath, datasetname, netTy
         metric = SegmentationMetric(args.classes)
         for j in range(data.shape[0]):
             metric.CM = metric.addBatch(predict[-1][j], target[-1][j])
-            conf_matrix = confusion_matrix(target[-1][j].flatten(), predict[-1][j].flatten(),labels=[0, 1, 2, 3, 4, 5])
+            conf_matrix = confusion_matrix(target[-1][j].flatten(), predict[-1][j].flatten(),labels=list(range(args.classes)))
             total_conf_matrix += conf_matrix
         pa.append(metric.meanPixelAccuracy())
 
@@ -196,27 +196,43 @@ if __name__ == '__main__':
         args.patch_w = 64
         args.batch_size = 6
 
-    if args.checkpointName in ["unfrozen","lora"]:
+    if args.checkpointName.endswith("unfrozen") or args.checkpointName.endswith("lora"):
         frozen = False
-    elif args.checkpointName == "frozen":
+    elif args.checkpointName.endswith("frozen"):
         frozen = True
+    else:
+        raise ValueError(
+            f"Unsupported checkpointName={args.checkpointName!r}; expected suffix "
+            "'unfrozen', 'frozen', or 'lora'"
+        )
+    if args.checkpointName.endswith("unfrozen"):
+        finetune_method = "unfrozen"
+    elif args.checkpointName.endswith("frozen"):
+        finetune_method = "frozen"
+    elif args.checkpointName.endswith("lora"):
+        finetune_method = "lora"
 
     if args.netType == "unet":
         net = U_Net(1,args.classes)
     elif args.netType == "linear":
-        net = dinov2_linear(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_linear(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
     elif args.netType == "pup":
-        net = dinov2_pup(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_pup(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
     elif args.netType == "mla":
-        net = dinov2_mla(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_mla(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
     elif args.netType == "dpt":
-        net = dinov2_dpt(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=args.checkpointName)
+        net = dinov2_dpt(args.classes, pretrain=args.dpt, vit_type=args.vt,frozen=frozen,finetune_method=finetune_method)
         
     get_parameter_number(net)
     logger.info(args.dataset +'/'+ args.netType +'_'+args.checkpointName + "_" + args.vt)
     model_Path =  '../checkpoint/'+ args.dataset +'/'+ args.loss +'/'+args.netType +'/'+args.checkpointName + "_" + args.vt+'_maxiou_valid.pth'
     lora_Path = '../checkpoint/'+ args.dataset +'/'+ args.loss +'/'+args.netType +'/'+args.checkpointName + "_" + args.vt+'_maxiou_valid_lora.pth'
-    pngPath = '../png/'+ args.dataset +'/'+ args.netType +'/'+ args.loss +'/' +args.checkpointName + "_" + args.vt+'/'
+    pngPath = os.environ.get(
+        'EVAL_PNG_DIR',
+        '../png/'+ args.dataset +'/'+ args.netType +'/'+ args.loss +'/' +args.checkpointName + "_" + args.vt+'/'
+    )
+    if not pngPath.endswith(os.sep):
+        pngPath += os.sep
 
     if not os.path.exists(pngPath):
         os.makedirs(pngPath)

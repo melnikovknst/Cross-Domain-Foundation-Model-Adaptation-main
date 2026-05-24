@@ -35,6 +35,8 @@ class BasicDataset(Dataset):
             self.train_label_dir = os.path.join(DATA_ROOT, 'amplitude/train/target')
             self.valid_data_dir = os.path.join(DATA_ROOT, 'amplitude/valid/input')
             self.valid_label_dir = os.path.join(DATA_ROOT, 'amplitude/valid/target')
+            self.test_data_dir = os.path.join(DATA_ROOT, 'amplitude/test/input')
+            self.test_label_dir = os.path.join(DATA_ROOT, 'amplitude/test/target')
         else:
             print("Dataset error!!")
         print('netType:' + netType)
@@ -46,12 +48,24 @@ class BasicDataset(Dataset):
             self.data_dir = self.train_data_dir
             self.label_dir = self.train_label_dir
         else:
-            self.data_dir = self.valid_data_dir
-            self.label_dir = self.valid_label_dir
+            eval_split = os.environ.get('AMPLITUDE_EVAL_SPLIT', 'valid')
+            if eval_split == 'valid':
+                self.data_dir = self.valid_data_dir
+                self.label_dir = self.valid_label_dir
+            elif eval_split == 'test':
+                self.data_dir = self.test_data_dir
+                self.label_dir = self.test_label_dir
+            else:
+                raise RuntimeError(
+                    f"Unsupported AMPLITUDE_EVAL_SPLIT={eval_split!r}; use 'valid' or 'test'"
+                )
 
         self.ids = sorted(
-            file_name for file_name in os.listdir(self.data_dir)
-            if file_name.endswith('.dat')
+            (
+                file_name for file_name in os.listdir(self.data_dir)
+                if file_name.endswith('.dat')
+            ),
+            key=self.slice_sort_key
         )
         if not self.ids:
             raise RuntimeError(f'No .dat files found in {self.data_dir}')
@@ -95,6 +109,11 @@ class BasicDataset(Dataset):
         b,c,h,w = data.shape
         data_fliplr = np.fliplr(np.squeeze(data))
         return data_fliplr.reshape(b,c,h,w)
+
+    @staticmethod
+    def slice_sort_key(file_name):
+        name = os.path.splitext(file_name)[0]
+        return (0, int(name)) if name.isdigit() else (1, name)
 
 if __name__ == '__main__':
 
